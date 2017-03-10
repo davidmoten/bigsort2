@@ -49,4 +49,8 @@ public final class Options<Entry, Key, Value> {
         return serializer;
     }
 
+    public int filesPerMerge() {
+        return 2;
+    }
+
 }

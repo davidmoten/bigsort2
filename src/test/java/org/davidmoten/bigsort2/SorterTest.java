@@ -16,12 +16,12 @@ public class SorterTest {
 
             @Override
             public byte[] serialize(Integer t) throws IOException {
-                return toBytes(t);
+                return Util.toBytes(t);
             }
 
             @Override
             public Integer deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
-                return fromBytes(bytes);
+                return Util.fromBytes(bytes);
             }
         };
         Options<Integer, Integer, Integer> options = new Options<>(1000, Comparator.naturalOrder(),
@@ -30,14 +30,6 @@ public class SorterTest {
         sorter.sort(Flowable.range(1, 10000)).blockingGet();
     }
 
-    private static int fromBytes(byte[] bytes) {
-        return bytes[0] << 24 | (bytes[1] & 0xFF) << 16 | (bytes[2] & 0xFF) << 8
-                | (bytes[3] & 0xFF);
-    }
-
-    public static final byte[] toBytes(int value) {
-        return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8),
-                (byte) value };
-    }
+    
 
 }
