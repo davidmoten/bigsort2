@@ -63,8 +63,7 @@ public final class Sorter<Entry, Key, Value> {
             LongMappedByteBuffer[] bb = new LongMappedByteBuffer[files.size()];
             for (int i = 0; i < files.size(); i++) {
                 File f = files.get(i);
-                LongMappedByteBuffer mm = new LongMappedByteBuffer(f);
-                bb[i] = mm;
+                bb[i] = new LongMappedByteBuffer(f);
             }
             long[] sizes = new long[files.size()];
             for (int i = 0; i < sizes.length; i++) {
@@ -107,6 +106,7 @@ public final class Sorter<Entry, Key, Value> {
                 if (next < sizes[leastIndex]) {
                     positions[leastIndex] = next;
                 } else {
+                    bb[leastIndex].close();
                     positions[leastIndex] = -1;
                 }
             }
