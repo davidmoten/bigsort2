@@ -8,9 +8,7 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 
-public class LongMappedByteBuffer implements Closeable {
-
-    private static final long MARGIN = 1000000;
+public final class LongMappedByteBuffer implements Closeable {
 
     private int MAX_SIZE = 1024 * 1024 * 100;
 
@@ -43,23 +41,33 @@ public class LongMappedByteBuffer implements Closeable {
     }
 
     public void position(long pos) {
-        if (pos < start || pos >= start + size - MARGIN) {
+        if (pos < start || pos >= start + size) {
             start = pos;
             updateMM();
         }
         mm.position((int) (pos - start));
     }
-    
+
     public int readInt() {
+        checkPosition(4);
         return mm.getInt();
     }
-    
+
+    private void checkPosition(int numBytesToRead) {
+        if (start + mm.position() + numBytesToRead > size) {
+            start += mm.position();
+            updateMM();
+        }
+    }
+
     public void get(byte[] bytes) {
+        checkPosition(bytes.length);
         mm.get(bytes);
     }
 
     @Override
     public void close() throws IOException {
+        mm.force();
         r.close();
     }
 

@@ -2,7 +2,6 @@ package org.davidmoten.bigsort2;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -13,6 +12,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.github.davidmoten.guavamini.Preconditions;
 
 import io.reactivex.Flowable;
 import io.reactivex.Single;
@@ -30,15 +31,14 @@ public final class Sorter<Entry, Key, Value> {
         this.options = options;
     }
 
-    public Single<Long> sort(Flowable<Entry> source) {
+    public Single<File> sort(Flowable<Entry> source) {
         return source //
                 .buffer(options.maxInMemorySort()) //
                 .flatMap(list -> Flowable
                         .fromCallable(() -> sortInPlace(list, options.entryComparator()))
                         .map(sorted -> writeToNewFile(sorted)) //
                         .subscribeOn(Schedulers.computation()))
-                .buffer(options.filesPerMerge()) //
-                .map(files -> merge(files)).count();
+                .toList().map(files -> merge(files));
     }
 
     private File writeToNewFile(List<Entry> list) {
@@ -57,9 +57,22 @@ public final class Sorter<Entry, Key, Value> {
     }
 
     private File merge(List<File> files) {
-        File file = new File(options.directory(), index.incrementAndGet() + ".merge");
-        try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
+        Preconditions.checkArgument(!files.isEmpty());
+        int size = files.size();
+        while (size > 1) {
+            int batch = Math.min(size, options.filesPerMerge());
+            File file = mergeThese(files.subList(size - batch, size));
+            files.set(size - batch, file);
+            size = size - batch;
+        }
+        return files.get(0);
+    }
 
+    private File mergeThese(List<File> files) {
+        log.info("merging "+ files);
+        File file = new File(options.directory(), index.incrementAndGet() + ".merge");
+        long count = 0;
+        try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
             LongMappedByteBuffer[] bb = new LongMappedByteBuffer[files.size()];
             for (int i = 0; i < files.size(); i++) {
                 File f = files.get(i);
@@ -77,7 +90,7 @@ public final class Sorter<Entry, Key, Value> {
                 int leastIndex = -1;
                 for (int i = 0; i < positions.length; i++) {
                     long pos = positions[i];
-                    if (pos > 0) {
+                    if (pos >= 0) {
                         if (entry[i] == null) {
                             bb[i].position(pos);
                             int entrySize = bb[i].readInt();
@@ -102,6 +115,7 @@ public final class Sorter<Entry, Key, Value> {
                 byte[] bytes = options.serializer().serialize(leastEntry);
                 out.write(Util.toBytes(bytes.length));
                 out.write(bytes);
+                count++;
                 long next = positions[leastIndex] + 4 + bytes.length;
                 if (next < sizes[leastIndex]) {
                     positions[leastIndex] = next;
@@ -113,6 +127,7 @@ public final class Sorter<Entry, Key, Value> {
         } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
+        log.info(count + " entries written to " + file);
         return file;
     }
 

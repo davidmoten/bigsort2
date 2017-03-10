@@ -24,10 +24,10 @@ public class SorterTest {
                 return Util.fromBytes(bytes);
             }
         };
-        Options<Integer, Integer, Integer> options = new Options<>(1000, Comparator.naturalOrder(),
+        Options<Integer, Integer, Integer> options = new Options<>(10, Comparator.naturalOrder(),
                 Functions.identity(), Functions.identity(), serializer, "target");
         Sorter<Integer, Integer, Integer> sorter = new Sorter<Integer, Integer, Integer>(options);
-        sorter.sort(Flowable.range(1, 10000)).blockingGet();
+        sorter.sort(Flowable.range(1, 100)).blockingGet();
     }
 
     
