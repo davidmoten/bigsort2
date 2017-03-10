@@ -6,17 +6,18 @@ import io.reactivex.functions.Function;
 
 public final class Options<Entry, Key, Value> {
 
-    public final int maxInMemorySort;
-    public final Comparator<Key> comparator;
+    private final int maxInMemorySort;
+    private final Comparator<Key> comparator;
     private final Function<Entry, Key> keyMapper;
     private final Function<Entry, Value> valueMapper;
     private final Serializer<Entry> serializer;
     private final Comparator<Entry> entryComparator;
+    private String directory;
 
     public Options(int maxInMemorySort, Comparator<Key> comparator, //
             Function<Entry, Key> keyMapper, //
             Function<Entry, Value> valueMapper, //
-            Serializer<Entry> serializer) {
+            Serializer<Entry> serializer, String directory) {
         this.maxInMemorySort = maxInMemorySort;
         this.comparator = comparator;
         this.keyMapper = keyMapper;
@@ -29,10 +30,23 @@ public final class Options<Entry, Key, Value> {
                 throw new RuntimeException(e);
             }
         };
+        this.directory = directory;
     }
 
     public Comparator<Entry> entryComparator() {
         return entryComparator;
+    }
+
+    public String directory() {
+        return directory;
+    }
+
+    public int maxInMemorySort() {
+        return maxInMemorySort;
+    }
+
+    public Serializer<Entry> serializer() {
+        return serializer;
     }
 
 }
