@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.github.davidmoten.guavamini.Lists;
@@ -52,6 +53,7 @@ public class SorterTest {
     }
 
     @Test
+    @Ignore
     public void testLarge() {
         final int N = 10_000_000;
         final int maxInMemorySort = 1_000_000;

@@ -2,6 +2,8 @@ package org.davidmoten.bigsort2;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -37,14 +39,16 @@ public final class Sorter<Entry, Key, Value> {
     public Single<File> sort(Flowable<Entry> source) {
         return source //
                 .buffer(options.maxInMemorySort()) //
-                .flatMap(list -> Flowable.fromCallable(() -> sortInPlace(list, options.entryComparator()))
+                .flatMap(list -> Flowable
+                        .fromCallable(() -> sortInPlace(list, options.entryComparator()))
                         .map(sorted -> writeToNewFile(sorted)) //
                         .subscribeOn(Schedulers.computation()))
                 .toList().map(files -> merge(files));
     }
 
     public Flowable<Entry> entries(File file) {
-        final Callable<InputStream> resourceSupplier = () -> new BufferedInputStream(new FileInputStream(file));
+        final Callable<InputStream> resourceSupplier = () -> new BufferedInputStream(
+                new FileInputStream(file));
         final Function<InputStream, Flowable<Entry>> sourceSupplier = is -> Flowable.generate(c -> {
             if (options.serializer().size().isPresent()) {
                 final byte[] bytes = new byte[options.serializer().size().get()];
@@ -60,7 +64,8 @@ public final class Sorter<Entry, Key, Value> {
                 if (a == -1) {
                     c.onComplete();
                 } else {
-                    final int length = Util.intFromBytes(a, (byte) is.read(), (byte) is.read(), (byte) is.read());
+                    final int length = Util.intFromBytes(a, (byte) is.read(), (byte) is.read(),
+                            (byte) is.read());
                     final byte[] bytes = new byte[length];
                     is.read(bytes);
                     final Entry entry = options.serializer().deserialize(bytes);
@@ -111,43 +116,54 @@ public final class Sorter<Entry, Key, Value> {
     @VisibleForTesting
     File mergeThese(List<File> files) {
         final File file = new File(options.directory(), index.incrementAndGet() + ".merge");
+        final DataInputStream[] fileStream = new DataInputStream[files.size()];
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
-            final LongMappedByteBuffer[] bb = new LongMappedByteBuffer[files.size()];
             for (int i = 0; i < files.size(); i++) {
-                final File f = files.get(i);
-                bb[i] = new LongMappedByteBuffer(f);
+                fileStream[i] = new DataInputStream(
+                        new BufferedInputStream(new FileInputStream(files.get(i))));
             }
-            final long[] sizes = new long[files.size()];
-            for (int i = 0; i < sizes.length; i++) {
-                sizes[i] = files.get(i).length();
-            }
-            final long[] positions = new long[files.size()];
+            // holds the current entry for each fileStream (null if not read
+            // yet)
             @SuppressWarnings("unchecked")
             final Entry[] entry = (Entry[]) new Object[files.size()];
             while (true) {
                 Entry leastEntry = null;
                 int leastIndex = -1;
-                for (int i = 0; i < positions.length; i++) {
-                    final long pos = positions[i];
-                    if (pos >= 0) {
+                for (int i = 0; i < files.size(); i++) {
+                    if (fileStream[i] != null) {
                         if (entry[i] == null) {
-                            bb[i].position(pos);
+                            // latest entry not read yet so read it
                             if (options.serializer().size().isPresent()) {
+                                // fixed size records
                                 final byte[] bytes = new byte[options.serializer().size().get()];
-                                bb[i].get(bytes);
-                                entry[i] = options.serializer().deserialize(bytes);
+                                int count = fileStream[i].read(bytes);
+                                if (count == -1) {
+                                    fileStream[i].close();
+                                    fileStream[i] = null;
+                                    entry[i] = null;
+                                } else {
+                                    entry[i] = options.serializer().deserialize(bytes);
+                                }
                             } else {
-                                final int entrySize = bb[i].readInt();
-                                final byte[] bytes = new byte[entrySize];
-                                bb[i].get(bytes);
-                                entry[i] = options.serializer().deserialize(bytes);
+                                // variable size records
+                                final int entrySize = readInt(fileStream[i]);
+                                if (entrySize == -1) {
+                                    fileStream[i].close();
+                                    fileStream[i] = null;
+                                    entry[i] = null;
+                                } else {
+                                    final byte[] bytes = new byte[entrySize];
+                                    fileStream[i].read(bytes);
+                                    entry[i] = options.serializer().deserialize(bytes);
+                                }
                             }
                         }
-                        if (leastEntry == null) {
-                            leastEntry = entry[i];
-                            leastIndex = i;
-                        } else {
-                            if (options.entryComparator().compare(entry[i], leastEntry) < 0) {
+                        if (entry[i] != null) {
+                            if (leastEntry == null) {
+                                leastEntry = entry[i];
+                                leastIndex = i;
+                            } else if (options.entryComparator().compare(entry[i],
+                                    leastEntry) < 0) {
                                 leastEntry = entry[i];
                                 leastIndex = i;
                             }
@@ -158,33 +174,47 @@ public final class Sorter<Entry, Key, Value> {
                     break;
                 }
                 final byte[] bytes = options.serializer().serialize(leastEntry);
+                leastEntry = null;
+                entry[leastIndex] = null;
                 if (!options.serializer().size().isPresent()) {
                     out.write(Util.intToBytes(bytes.length));
                 }
                 out.write(bytes);
-                final int lengthBytes;
-                if (options.serializer().size().isPresent()) {
-                    lengthBytes = 0;
-                } else {
-                    lengthBytes = 4;
-                }
-                final long next = positions[leastIndex] + lengthBytes + bytes.length;
-                if (next < sizes[leastIndex]) {
-                    positions[leastIndex] = next;
-                    entry[leastIndex] = null;
-                } else {
-                    bb[leastIndex].close();
-                    bb[leastIndex] = null;
-                    positions[leastIndex] = -1;
-                }
             }
         } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException(e);
+        } finally {
+            // cleanup the input streams in case of failure
+            for (DataInputStream d : fileStream) {
+                closeQuietly(d);
+            }
         }
         for (final File f : files) {
             f.delete();
         }
         return file;
+    }
+
+    public final int readInt(InputStream is) throws IOException {
+        int ch1 = is.read();
+        if (ch1 == -1)
+            return -1;
+        int ch2 = is.read();
+        int ch3 = is.read();
+        int ch4 = is.read();
+        if ((ch1 | ch2 | ch3 | ch4) < 0)
+            throw new EOFException();
+        return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
+    }
+
+    private static void closeQuietly(DataInputStream d) {
+        if (d != null) {
+            try {
+                d.close();
+            } catch (IOException e) {
+                // ignore
+            }
+        }
     }
 
     private static <T> List<T> sortInPlace(List<T> list, Comparator<T> comparator) {
