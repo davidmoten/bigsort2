@@ -19,19 +19,19 @@ import io.reactivex.internal.functions.Functions;
 public class SorterTest {
 
     @Test
-    public void test() {
+    public void testSmall() {
         final int N = 100;
         final Sorter<Integer, Integer, Integer> sorter = createSorter();
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
-        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, 100)).blockingGet());
+        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
     }
 
     @Test
     public void testFixedSize() {
         final int N = 100;
-        final Sorter<Integer, Integer, Integer> sorter = createSorter(false);
+        final Sorter<Integer, Integer, Integer> sorter = createSorter(false, 10);
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
-        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, 100)).blockingGet());
+        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
     }
 
     @Test
@@ -49,19 +49,27 @@ public class SorterTest {
         final File b = sorter.writeToNewFile(Lists.newArrayList(1, 3));
         final File file = sorter.mergeThese(Lists.newArrayList(a, b));
         assertEquals(Lists.newArrayList(1, 2, 3), sorter.entries(file).toList().blockingGet());
-
     }
 
-    private static Sorter<Integer, Integer, Integer> createSorter() {
-        return createSorter(true);
+    @Test
+    public void testLarge() {
+        final int N = 1_000_000;
+        final int maxInMemorySort = 1000;
+        final Sorter<Integer, Integer, Integer> sorter = createSorter(false, maxInMemorySort);
+        final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
+        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
     }
 
-    private static Sorter<Integer, Integer, Integer> createSorter(boolean dynamicSize) {
+    private static Sorter<Integer, Integer, Integer> createSorter(boolean dynamicSize, int maxInMemorySort) {
         final Serializer<Integer> serializer = createSerializer(dynamicSize);
-        final Options<Integer, Integer, Integer> options = new Options<>(10, Comparator.naturalOrder(),
+        final Options<Integer, Integer, Integer> options = new Options<>(maxInMemorySort, Comparator.naturalOrder(),
                 Functions.identity(), serializer, "target");
         final Sorter<Integer, Integer, Integer> sorter = new Sorter<Integer, Integer, Integer>(options);
         return sorter;
+    }
+
+    private static Sorter<Integer, Integer, Integer> createSorter() {
+        return createSorter(true, 10);
     }
 
     private static Serializer<Integer> createSerializer(boolean dynamicSize) {

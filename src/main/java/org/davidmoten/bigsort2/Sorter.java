@@ -107,6 +107,9 @@ public final class Sorter<Entry, Key, Value> {
                 list.add(merge(files.subList(i, Math.min(size, i + options.filesPerMerge()))));
                 i += options.filesPerMerge();
             }
+            for (final File f : files) {
+                f.delete();
+            }
             return merge(list);
         }
     }
@@ -185,6 +188,9 @@ public final class Sorter<Entry, Key, Value> {
             }
         } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException(e);
+        }
+        for (final File f : files) {
+            f.delete();
         }
         log.info(count + " entries written to " + file);
         return file;
