@@ -1,6 +1,7 @@
 package org.davidmoten.bigsort2;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,9 +19,10 @@ public class SorterTest {
 
     @Test
     public void test() {
+        final int N = 100;
         final Sorter<Integer, Integer, Integer> sorter = createSorter();
-        final File file = sorter.sort(Flowable.range(1, 20).map(x -> 101 - x)).blockingGet();
-        sorter.entries(file).doOnNext(System.out::println).subscribe();
+        final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
+        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, 100)).blockingGet());
     }
 
     @Test

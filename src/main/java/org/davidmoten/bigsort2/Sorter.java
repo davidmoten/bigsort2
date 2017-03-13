@@ -152,6 +152,7 @@ public final class Sorter<Entry, Key, Value> {
                 final long next = positions[leastIndex] + 4 + bytes.length;
                 if (next < sizes[leastIndex]) {
                     positions[leastIndex] = next;
+                    entry[leastIndex] = null;
                 } else {
                     bb[leastIndex].close();
                     positions[leastIndex] = -1;
