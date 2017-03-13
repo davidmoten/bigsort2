@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -34,22 +35,21 @@ public final class Sorter<Entry, Key, Value> {
     public Single<File> sort(Flowable<Entry> source) {
         return source //
                 .buffer(options.maxInMemorySort()) //
-                .flatMap(list -> Flowable
-                        .fromCallable(() -> sortInPlace(list, options.entryComparator()))
+                .flatMap(list -> Flowable.fromCallable(() -> sortInPlace(list, options.entryComparator()))
                         .map(sorted -> writeToNewFile(sorted)) //
                         .subscribeOn(Schedulers.computation()))
                 .toList().map(files -> merge(files));
     }
 
     private File writeToNewFile(List<Entry> list) {
-        File file = new File(options.directory(), index.incrementAndGet() + ".sort");
+        final File file = new File(options.directory(), index.incrementAndGet() + ".sort");
         try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
-            for (Entry entry : list) {
-                byte[] bytes = options.serializer().serialize(entry);
+            for (final Entry entry : list) {
+                final byte[] bytes = options.serializer().serialize(entry);
                 out.write(Util.toBytes(bytes.length));
                 out.write(bytes);
             }
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
         log.info("" + list.size() + " entries written to " + file);
@@ -58,49 +58,53 @@ public final class Sorter<Entry, Key, Value> {
 
     private File merge(List<File> files) {
         Preconditions.checkArgument(!files.isEmpty());
-        int size = files.size();
-        while (size > 1) {
-            int batch = Math.min(size, options.filesPerMerge());
-            File file = mergeThese(files.subList(size - batch, size));
-            files.set(size - batch, file);
-            size = size - batch;
+        if (files.size() <= options.filesPerMerge()) {
+            return mergeThese(files);
+        } else {
+            int i = 0;
+            final int size = files.size();
+            final List<File> list = new ArrayList<>();
+            while (i < size) {
+                list.add(merge(files.subList(i, Math.min(size, i + options.filesPerMerge()))));
+                i += options.filesPerMerge();
+            }
+            return merge(list);
         }
-        return files.get(0);
     }
 
     private File mergeThese(List<File> files) {
-        log.info("merging "+ files);
-        File file = new File(options.directory(), index.incrementAndGet() + ".merge");
+        log.info("merging " + files);
+        final File file = new File(options.directory(), index.incrementAndGet() + ".merge");
         long count = 0;
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
-            LongMappedByteBuffer[] bb = new LongMappedByteBuffer[files.size()];
+            final LongMappedByteBuffer[] bb = new LongMappedByteBuffer[files.size()];
             for (int i = 0; i < files.size(); i++) {
-                File f = files.get(i);
+                final File f = files.get(i);
                 bb[i] = new LongMappedByteBuffer(f);
             }
-            long[] sizes = new long[files.size()];
+            final long[] sizes = new long[files.size()];
             for (int i = 0; i < sizes.length; i++) {
                 sizes[i] = files.get(i).length();
             }
-            long[] positions = new long[files.size()];
+            final long[] positions = new long[files.size()];
             @SuppressWarnings("unchecked")
-            Entry[] entry = (Entry[]) new Object[files.size()];
+            final Entry[] entry = (Entry[]) new Object[files.size()];
             while (true) {
                 Entry leastEntry = null;
                 int leastIndex = -1;
                 for (int i = 0; i < positions.length; i++) {
-                    long pos = positions[i];
+                    final long pos = positions[i];
                     if (pos >= 0) {
                         if (entry[i] == null) {
                             bb[i].position(pos);
-                            int entrySize = bb[i].readInt();
-                            byte[] bytes = new byte[entrySize];
+                            final int entrySize = bb[i].readInt();
+                            final byte[] bytes = new byte[entrySize];
                             bb[i].get(bytes);
                             entry[i] = options.serializer().deserialize(bytes);
                         }
                         if (leastEntry == null) {
                             leastEntry = entry[i];
-                            leastIndex = -1;
+                            leastIndex = i;
                         } else {
                             if (options.entryComparator().compare(entry[i], leastEntry) < 0) {
                                 leastEntry = entry[i];
@@ -112,11 +116,11 @@ public final class Sorter<Entry, Key, Value> {
                 if (leastIndex == -1) {
                     break;
                 }
-                byte[] bytes = options.serializer().serialize(leastEntry);
+                final byte[] bytes = options.serializer().serialize(leastEntry);
                 out.write(Util.toBytes(bytes.length));
                 out.write(bytes);
                 count++;
-                long next = positions[leastIndex] + 4 + bytes.length;
+                final long next = positions[leastIndex] + 4 + bytes.length;
                 if (next < sizes[leastIndex]) {
                     positions[leastIndex] = next;
                 } else {
