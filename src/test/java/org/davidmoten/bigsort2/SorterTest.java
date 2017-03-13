@@ -53,11 +53,14 @@ public class SorterTest {
 
     @Test
     public void testLarge() {
-        final int N = 1_000_000;
-        final int maxInMemorySort = 1000;
+        final int N = 100_000_000;
+        final int maxInMemorySort = 1_000_000;
+        long t = System.currentTimeMillis();
         final Sorter<Integer, Integer, Integer> sorter = createSorter(false, maxInMemorySort);
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
         assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
+        t = System.currentTimeMillis() - t;
+        System.out.println(N / 1_000_000.0 / t * 1000 + "m records/s");
     }
 
     private static Sorter<Integer, Integer, Integer> createSorter(boolean dynamicSize, int maxInMemorySort) {

@@ -10,7 +10,7 @@ import java.nio.channels.FileChannel.MapMode;
 
 public final class LongMappedByteBuffer implements Closeable {
 
-    private int MAX_SIZE = 1024 * 1024 * 100;
+    private final int MAX_SIZE = 1024 * 1024 * 10;
 
     private final FileChannel c;
 
@@ -26,7 +26,7 @@ public final class LongMappedByteBuffer implements Closeable {
             c = r.getChannel();
             start = 0;
             updateMM();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -35,7 +35,7 @@ public final class LongMappedByteBuffer implements Closeable {
         try {
             size = Math.min(MAX_SIZE, c.size() - start);
             mm = c.map(MapMode.READ_ONLY, start, size);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -67,7 +67,6 @@ public final class LongMappedByteBuffer implements Closeable {
 
     @Override
     public void close() throws IOException {
-        mm.force();
         r.close();
     }
 

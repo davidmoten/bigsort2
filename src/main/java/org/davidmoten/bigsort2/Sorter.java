@@ -15,9 +15,6 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.davidmoten.guavamini.Preconditions;
 import com.github.davidmoten.guavamini.annotations.VisibleForTesting;
 
@@ -28,8 +25,6 @@ import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
 public final class Sorter<Entry, Key, Value> {
-
-    private static final Logger log = LoggerFactory.getLogger(Sorter.class);
 
     private final Options<Entry, Key, Value> options;
 
@@ -91,7 +86,6 @@ public final class Sorter<Entry, Key, Value> {
         } catch (final IOException e) {
             throw new RuntimeException(e);
         }
-        log.info("" + list.size() + " entries written to " + file);
         return file;
     }
 
@@ -116,9 +110,7 @@ public final class Sorter<Entry, Key, Value> {
 
     @VisibleForTesting
     File mergeThese(List<File> files) {
-        log.info("merging " + files);
         final File file = new File(options.directory(), index.incrementAndGet() + ".merge");
-        long count = 0;
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
             final LongMappedByteBuffer[] bb = new LongMappedByteBuffer[files.size()];
             for (int i = 0; i < files.size(); i++) {
@@ -170,7 +162,6 @@ public final class Sorter<Entry, Key, Value> {
                     out.write(Util.intToBytes(bytes.length));
                 }
                 out.write(bytes);
-                count++;
                 final int lengthBytes;
                 if (options.serializer().size().isPresent()) {
                     lengthBytes = 0;
@@ -183,6 +174,7 @@ public final class Sorter<Entry, Key, Value> {
                     entry[leastIndex] = null;
                 } else {
                     bb[leastIndex].close();
+                    bb[leastIndex] = null;
                     positions[leastIndex] = -1;
                 }
             }
@@ -192,7 +184,6 @@ public final class Sorter<Entry, Key, Value> {
         for (final File f : files) {
             f.delete();
         }
-        log.info(count + " entries written to " + file);
         return file;
     }
 
