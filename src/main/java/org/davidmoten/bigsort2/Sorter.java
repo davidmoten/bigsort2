@@ -1,14 +1,18 @@
 package org.davidmoten.bigsort2;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
@@ -18,6 +22,8 @@ import com.github.davidmoten.guavamini.Preconditions;
 
 import io.reactivex.Flowable;
 import io.reactivex.Single;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
 public final class Sorter<Entry, Key, Value> {
@@ -41,12 +47,25 @@ public final class Sorter<Entry, Key, Value> {
                 .toList().map(files -> merge(files));
     }
 
+    public Flowable<Entry> entries(File file) {
+        final Callable<InputStream> resourceSupplier = () -> new BufferedInputStream(new FileInputStream(file));
+        final Function<InputStream, Flowable<Entry>> sourceSupplier = is -> Flowable.generate(c -> {
+            final int length = Util.intFromBytes((byte) is.read(), (byte) is.read(), (byte) is.read(),
+                    (byte) is.read());
+            final byte[] bytes = new byte[length];
+            is.read(bytes);
+            final Entry entry = options.serializer().deserialize(bytes);
+        });
+        final Consumer<InputStream> resourceDisposer = is -> is.close();
+        return Flowable.using(resourceSupplier, sourceSupplier, resourceDisposer);
+    }
+
     private File writeToNewFile(List<Entry> list) {
         final File file = new File(options.directory(), index.incrementAndGet() + ".sort");
         try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
             for (final Entry entry : list) {
                 final byte[] bytes = options.serializer().serialize(entry);
-                out.write(Util.toBytes(bytes.length));
+                out.write(Util.intToBytes(bytes.length));
                 out.write(bytes);
             }
         } catch (final IOException e) {
@@ -117,7 +136,7 @@ public final class Sorter<Entry, Key, Value> {
                     break;
                 }
                 final byte[] bytes = options.serializer().serialize(leastEntry);
-                out.write(Util.toBytes(bytes.length));
+                out.write(Util.intToBytes(bytes.length));
                 out.write(bytes);
                 count++;
                 final long next = positions[leastIndex] + 4 + bytes.length;
