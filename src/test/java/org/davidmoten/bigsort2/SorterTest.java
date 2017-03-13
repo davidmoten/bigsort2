@@ -31,6 +31,16 @@ public class SorterTest {
         assertEquals(list, sorter.entries(file).toList().blockingGet());
     }
 
+    @Test
+    public void testMerge() {
+        final Sorter<Integer, Integer, Integer> sorter = createSorter();
+        final File a = sorter.writeToNewFile(Lists.newArrayList(2));
+        final File b = sorter.writeToNewFile(Lists.newArrayList(1, 3));
+        final File file = sorter.mergeThese(Lists.newArrayList(a, b));
+        assertEquals(Lists.newArrayList(1, 2, 3), sorter.entries(file).toList().blockingGet());
+
+    }
+
     private static Sorter<Integer, Integer, Integer> createSorter() {
         final Serializer<Integer> serializer = createSerializer();
         final Options<Integer, Integer, Integer> options = new Options<>(10, Comparator.naturalOrder(),
