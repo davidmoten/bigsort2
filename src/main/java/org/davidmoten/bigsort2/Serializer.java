@@ -1,6 +1,7 @@
 package org.davidmoten.bigsort2;
 
 import java.io.IOException;
+import java.util.Optional;
 
 public interface Serializer<T> {
 
@@ -29,4 +30,6 @@ public interface Serializer<T> {
      *             if class T not found
      */
     T deserialize(byte[] bytes) throws IOException, ClassNotFoundException;
+
+    Optional<Integer> size();
 }

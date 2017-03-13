@@ -51,15 +51,26 @@ public final class Sorter<Entry, Key, Value> {
     public Flowable<Entry> entries(File file) {
         final Callable<InputStream> resourceSupplier = () -> new BufferedInputStream(new FileInputStream(file));
         final Function<InputStream, Flowable<Entry>> sourceSupplier = is -> Flowable.generate(c -> {
-            final byte a = (byte) is.read();
-            if (a == -1) {
-                c.onComplete();
+            if (options.serializer().size().isPresent()) {
+                final byte[] bytes = new byte[options.serializer().size().get()];
+                final int num = is.read(bytes);
+                if (num == -1) {
+                    c.onComplete();
+                } else {
+                    final Entry entry = options.serializer().deserialize(bytes);
+                    c.onNext(entry);
+                }
             } else {
-                final int length = Util.intFromBytes(a, (byte) is.read(), (byte) is.read(), (byte) is.read());
-                final byte[] bytes = new byte[length];
-                is.read(bytes);
-                final Entry entry = options.serializer().deserialize(bytes);
-                c.onNext(entry);
+                final byte a = (byte) is.read();
+                if (a == -1) {
+                    c.onComplete();
+                } else {
+                    final int length = Util.intFromBytes(a, (byte) is.read(), (byte) is.read(), (byte) is.read());
+                    final byte[] bytes = new byte[length];
+                    is.read(bytes);
+                    final Entry entry = options.serializer().deserialize(bytes);
+                    c.onNext(entry);
+                }
             }
         });
         final Consumer<InputStream> resourceDisposer = is -> is.close();
@@ -72,7 +83,9 @@ public final class Sorter<Entry, Key, Value> {
         try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
             for (final Entry entry : list) {
                 final byte[] bytes = options.serializer().serialize(entry);
-                out.write(Util.intToBytes(bytes.length));
+                if (!options.serializer().size().isPresent()) {
+                    out.write(Util.intToBytes(bytes.length));
+                }
                 out.write(bytes);
             }
         } catch (final IOException e) {
@@ -124,11 +137,16 @@ public final class Sorter<Entry, Key, Value> {
                     if (pos >= 0) {
                         if (entry[i] == null) {
                             bb[i].position(pos);
-                            final int entrySize = bb[i].readInt();
-                            final byte[] bytes = new byte[entrySize];
-                            bb[i].get(bytes);
-                            entry[i] = options.serializer().deserialize(bytes);
-                            System.out.println("entry " + i + "=" + entry[i]);
+                            if (options.serializer().size().isPresent()) {
+                                final byte[] bytes = new byte[options.serializer().size().get()];
+                                bb[i].get(bytes);
+                                entry[i] = options.serializer().deserialize(bytes);
+                            } else {
+                                final int entrySize = bb[i].readInt();
+                                final byte[] bytes = new byte[entrySize];
+                                bb[i].get(bytes);
+                                entry[i] = options.serializer().deserialize(bytes);
+                            }
                         }
                         if (leastEntry == null) {
                             leastEntry = entry[i];
@@ -144,12 +162,19 @@ public final class Sorter<Entry, Key, Value> {
                 if (leastIndex == -1) {
                     break;
                 }
-                System.out.println("leastEntry=" + leastEntry);
                 final byte[] bytes = options.serializer().serialize(leastEntry);
-                out.write(Util.intToBytes(bytes.length));
+                if (!options.serializer().size().isPresent()) {
+                    out.write(Util.intToBytes(bytes.length));
+                }
                 out.write(bytes);
                 count++;
-                final long next = positions[leastIndex] + 4 + bytes.length;
+                final int lengthBytes;
+                if (options.serializer().size().isPresent()) {
+                    lengthBytes = 0;
+                } else {
+                    lengthBytes = 4;
+                }
+                final long next = positions[leastIndex] + lengthBytes + bytes.length;
                 if (next < sizes[leastIndex]) {
                     positions[leastIndex] = next;
                     entry[leastIndex] = null;

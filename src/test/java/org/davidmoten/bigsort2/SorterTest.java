@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.Test;
 
@@ -21,6 +22,14 @@ public class SorterTest {
     public void test() {
         final int N = 100;
         final Sorter<Integer, Integer, Integer> sorter = createSorter();
+        final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
+        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, 100)).blockingGet());
+    }
+
+    @Test
+    public void testFixedSize() {
+        final int N = 100;
+        final Sorter<Integer, Integer, Integer> sorter = createSorter(false);
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
         assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, 100)).blockingGet());
     }
@@ -44,14 +53,18 @@ public class SorterTest {
     }
 
     private static Sorter<Integer, Integer, Integer> createSorter() {
-        final Serializer<Integer> serializer = createSerializer();
+        return createSorter(true);
+    }
+
+    private static Sorter<Integer, Integer, Integer> createSorter(boolean dynamicSize) {
+        final Serializer<Integer> serializer = createSerializer(dynamicSize);
         final Options<Integer, Integer, Integer> options = new Options<>(10, Comparator.naturalOrder(),
                 Functions.identity(), serializer, "target");
         final Sorter<Integer, Integer, Integer> sorter = new Sorter<Integer, Integer, Integer>(options);
         return sorter;
     }
 
-    private static Serializer<Integer> createSerializer() {
+    private static Serializer<Integer> createSerializer(boolean dynamicSize) {
         return new Serializer<Integer>() {
 
             @Override
@@ -62,6 +75,15 @@ public class SorterTest {
             @Override
             public Integer deserialize(byte[] bytes) throws IOException, ClassNotFoundException {
                 return Util.intFromBytes(bytes);
+            }
+
+            @Override
+            public Optional<Integer> size() {
+                if (dynamicSize) {
+                    return Optional.of(4);
+                } else {
+                    return Optional.empty();
+                }
             }
         };
     }
