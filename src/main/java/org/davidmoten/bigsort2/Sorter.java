@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.davidmoten.guavamini.Preconditions;
+import com.github.davidmoten.guavamini.annotations.VisibleForTesting;
 
 import io.reactivex.Flowable;
 import io.reactivex.Single;
@@ -50,17 +51,23 @@ public final class Sorter<Entry, Key, Value> {
     public Flowable<Entry> entries(File file) {
         final Callable<InputStream> resourceSupplier = () -> new BufferedInputStream(new FileInputStream(file));
         final Function<InputStream, Flowable<Entry>> sourceSupplier = is -> Flowable.generate(c -> {
-            final int length = Util.intFromBytes((byte) is.read(), (byte) is.read(), (byte) is.read(),
-                    (byte) is.read());
-            final byte[] bytes = new byte[length];
-            is.read(bytes);
-            final Entry entry = options.serializer().deserialize(bytes);
+            final byte a = (byte) is.read();
+            if (a == -1) {
+                c.onComplete();
+            } else {
+                final int length = Util.intFromBytes(a, (byte) is.read(), (byte) is.read(), (byte) is.read());
+                final byte[] bytes = new byte[length];
+                is.read(bytes);
+                final Entry entry = options.serializer().deserialize(bytes);
+                c.onNext(entry);
+            }
         });
         final Consumer<InputStream> resourceDisposer = is -> is.close();
         return Flowable.using(resourceSupplier, sourceSupplier, resourceDisposer);
     }
 
-    private File writeToNewFile(List<Entry> list) {
+    @VisibleForTesting
+    File writeToNewFile(List<Entry> list) {
         final File file = new File(options.directory(), index.incrementAndGet() + ".sort");
         try (BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
             for (final Entry entry : list) {
@@ -91,7 +98,8 @@ public final class Sorter<Entry, Key, Value> {
         }
     }
 
-    private File mergeThese(List<File> files) {
+    @VisibleForTesting
+    File mergeThese(List<File> files) {
         log.info("merging " + files);
         final File file = new File(options.directory(), index.incrementAndGet() + ".merge");
         long count = 0;
@@ -120,6 +128,7 @@ public final class Sorter<Entry, Key, Value> {
                             final byte[] bytes = new byte[entrySize];
                             bb[i].get(bytes);
                             entry[i] = options.serializer().deserialize(bytes);
+                            System.out.println("entry " + i + "=" + entry[i]);
                         }
                         if (leastEntry == null) {
                             leastEntry = entry[i];
@@ -135,6 +144,7 @@ public final class Sorter<Entry, Key, Value> {
                 if (leastIndex == -1) {
                     break;
                 }
+                System.out.println("leastEntry=" + leastEntry);
                 final byte[] bytes = options.serializer().serialize(leastEntry);
                 out.write(Util.intToBytes(bytes.length));
                 out.write(bytes);
