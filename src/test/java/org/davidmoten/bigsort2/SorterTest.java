@@ -53,7 +53,7 @@ public class SorterTest {
 
     @Test
     public void testLarge() {
-        final int N = 100_000_000;
+        final int N = 10_000_000;
         final int maxInMemorySort = 1_000_000;
         long t = System.currentTimeMillis();
         final Sorter<Integer, Integer, Integer> sorter = createSorter(false, maxInMemorySort);

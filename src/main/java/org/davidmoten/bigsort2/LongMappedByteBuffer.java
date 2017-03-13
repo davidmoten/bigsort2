@@ -12,9 +12,8 @@ public final class LongMappedByteBuffer implements Closeable {
 
     private final int MAX_SIZE = 1024 * 1024 * 10;
 
-    private final FileChannel c;
-
     // mutable
+    private FileChannel c;
     private MappedByteBuffer mm;
     private long start;
     private long size;
@@ -31,9 +30,13 @@ public final class LongMappedByteBuffer implements Closeable {
         }
     }
 
+    @SuppressWarnings("restriction")
     private void updateMM() {
         try {
             size = Math.min(MAX_SIZE, c.size() - start);
+            if (mm != null) {
+                ((sun.nio.ch.DirectBuffer) mm).cleaner().clean();
+            }
             mm = c.map(MapMode.READ_ONLY, start, size);
         } catch (final IOException e) {
             throw new RuntimeException(e);
