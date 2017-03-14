@@ -3,7 +3,6 @@ package org.davidmoten.bigsort2;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
-import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -118,10 +117,10 @@ public final class Sorter<Entry> {
     @VisibleForTesting
     File mergeThese(List<File> files) {
         final File file = new File(options.directory(), index.incrementAndGet() + ".merge");
-        final DataInputStream[] fileStream = new DataInputStream[files.size()];
+        final InputStream[] fileStream = new InputStream[files.size()];
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
             for (int i = 0; i < files.size(); i++) {
-                fileStream[i] = new DataInputStream(new BufferedInputStream(new FileInputStream(files.get(i))));
+                fileStream[i] = new BufferedInputStream(new FileInputStream(files.get(i)));
             }
             // holds the current entry for each fileStream (null if not read
             // yet)
@@ -181,7 +180,7 @@ public final class Sorter<Entry> {
             throw new RuntimeException(e);
         } finally {
             // cleanup the input streams in case of failure
-            for (final DataInputStream d : fileStream) {
+            for (final InputStream d : fileStream) {
                 closeQuietly(d);
             }
         }
