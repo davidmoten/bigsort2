@@ -26,13 +26,13 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
-public final class Sorter<Entry, Key> {
+public final class Sorter<Entry> {
 
-    private final Options<Entry, Key> options;
+    private final Options<Entry> options;
 
     private final AtomicLong index = new AtomicLong();
 
-    public Sorter(Options<Entry, Key> options) {
+    public Sorter(Options<Entry> options) {
         this.options = options;
     }
     
@@ -44,7 +44,7 @@ public final class Sorter<Entry, Key> {
         return source //
                 .buffer(options.maxInMemorySort()) //
                 .flatMap(list -> Flowable
-                        .fromCallable(() -> sortInPlace(list, options.entryComparator()))
+                        .fromCallable(() -> sortInPlace(list, options.comparator()))
                         .map(sorted -> writeToNewFile(sorted)) //
                         .subscribeOn(Schedulers.computation()))
                 .toList().map(files -> merge(files));
@@ -164,7 +164,7 @@ public final class Sorter<Entry, Key> {
                         if (entry[i] != null) {
                             if (leastIndex == -1) {
                                 leastIndex = i;
-                            } else if (options.entryComparator().compare(entry[i],
+                            } else if (options.comparator().compare(entry[i],
                                     entry[leastIndex]) < 0) {
                                 leastIndex = i;
                             }

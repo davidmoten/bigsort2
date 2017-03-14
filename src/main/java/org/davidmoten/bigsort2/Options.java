@@ -4,38 +4,24 @@ import java.util.Comparator;
 
 import io.reactivex.functions.Function;
 
-public final class Options<Entry, Key> {
+public final class Options<Entry> {
 
     private final int maxInMemorySort;
-    private final Comparator<Key> comparator;
     private final Serializer<Entry> serializer;
-    private final Comparator<Entry> entryComparator;
+    private final Comparator<Entry> comparator;
     private final String directory;
     private final int filesPerMerge;
 
-    public Options(int maxInMemorySort, Comparator<Key> comparator, //
-            Function<Entry, Key> keyMapper, //
+    public Options(int maxInMemorySort, Comparator<Entry> comparator, //
             Serializer<Entry> serializer, String directory, int filesPerMerge) {
         this.maxInMemorySort = maxInMemorySort;
         this.comparator = comparator;
         this.serializer = serializer;
         this.filesPerMerge = filesPerMerge;
-        this.entryComparator = (o1, o2) -> {
-            try {
-                return comparator.compare(keyMapper.apply(o1), keyMapper.apply(o2));
-            } catch (final Exception e) {
-                throw new RuntimeException(e);
-            }
-        };
         this.directory = directory;
     }
 
-    public Comparator<Entry> entryComparator() {
-        return entryComparator;
-    }
-
-    // TODO unused?
-    public Comparator<Key> comparator() {
+    public Comparator<Entry> comparator() {
         return comparator;
     }
 
@@ -58,9 +44,10 @@ public final class Options<Entry, Key> {
     public static final class Builder<Entry> {
 
         private int maxInMemorySort = 1000000;
-        private String directory;
+        private String directory = System.getProperty("java.io.tmpdir");
         private int filesPerMerge = 2;
         private Serializer<Entry> serializer;
+        private Comparator<Entry> comparator;
 
         public Builder(Serializer<Entry> serializer) {
             this.serializer = serializer;
@@ -81,50 +68,19 @@ public final class Options<Entry, Key> {
             return this;
         }
 
-        public <Key> Builder2<Entry, Key> comparator(Comparator<Key> comparator) {
-            return new Builder2<Entry, Key>(this, comparator);
+        public  Builder<Entry> comparator(Comparator<Entry> comparator) {
+            this.comparator= comparator;
+            return this;
+        }
+        
+        public Sorter<Entry> build() {
+            Options<Entry> options = new Options<Entry>(maxInMemorySort,
+                    comparator, serializer, directory,
+                    filesPerMerge);
+            return new Sorter<Entry>(options);
         }
 
     }
 
-    public static final class Builder2<Entry, Key> {
-
-        private final Builder<Entry> builder;
-        private final Comparator<Key> comparator;
-        private Function<Entry, Key> keyMapper;
-
-        public Builder2(Builder<Entry> builder, Comparator<Key> comparator) {
-            this.builder = builder;
-            this.comparator = comparator;
-        }
-
-        public Builder2<Entry, Key> keyMapper(Function<Entry, Key> keyMapper) {
-            this.keyMapper = keyMapper;
-            return this;
-        }
-
-        public Builder2<Entry, Key> directory(String directory) {
-            builder.directory = directory;
-            return this;
-        }
-
-        public Builder2<Entry, Key> maxInMemorySort(int value) {
-            builder.maxInMemorySort = value;
-            return this;
-        }
-
-        public Builder2<Entry, Key> filesPerMerge(int value) {
-            builder.filesPerMerge = value;
-            return this;
-        }
-
-        public Sorter<Entry, Key> build() {
-            Options<Entry, Key> options = new Options<Entry, Key>(builder.maxInMemorySort,
-                    comparator, keyMapper, builder.serializer, builder.directory,
-                    builder.filesPerMerge);
-            return new Sorter<Entry, Key>(options);
-        }
-
-    }
 
 }
