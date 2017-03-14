@@ -10,14 +10,16 @@ public final class Options<Entry, Key, Value> {
     private final Comparator<Key> comparator;
     private final Serializer<Entry> serializer;
     private final Comparator<Entry> entryComparator;
-    private String directory;
+    private final String directory;
+    private final int filesPerMerge;
 
     public Options(int maxInMemorySort, Comparator<Key> comparator, //
             Function<Entry, Key> keyMapper, //
-            Serializer<Entry> serializer, String directory) {
+            Serializer<Entry> serializer, String directory, int filesPerMerge) {
         this.maxInMemorySort = maxInMemorySort;
         this.comparator = comparator;
         this.serializer = serializer;
+        this.filesPerMerge = filesPerMerge;
         this.entryComparator = (o1, o2) -> {
             try {
                 return comparator.compare(keyMapper.apply(o1), keyMapper.apply(o2));
@@ -50,7 +52,21 @@ public final class Options<Entry, Key, Value> {
     }
 
     public int filesPerMerge() {
-        return 2;
+        return filesPerMerge;
     }
 
+    public static final class Builder {
+
+        private int maxInMemorySort;
+        private String directory;
+        private int filesPerMerge = 2;
+
+        private Builder() {
+        }
+        
+        public Builder directory(String directory) {
+            this.directory = directory;
+            return this;
+        }
+    }
 }

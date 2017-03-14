@@ -127,7 +127,6 @@ public final class Sorter<Entry, Key, Value> {
             @SuppressWarnings("unchecked")
             final Entry[] entry = (Entry[]) new Object[files.size()];
             while (true) {
-                Entry leastEntry = null;
                 int leastIndex = -1;
                 for (int i = 0; i < files.size(); i++) {
                     if (fileStream[i] != null) {
@@ -159,12 +158,10 @@ public final class Sorter<Entry, Key, Value> {
                             }
                         }
                         if (entry[i] != null) {
-                            if (leastEntry == null) {
-                                leastEntry = entry[i];
+                            if (leastIndex == -1) {
                                 leastIndex = i;
                             } else if (options.entryComparator().compare(entry[i],
-                                    leastEntry) < 0) {
-                                leastEntry = entry[i];
+                                    entry[leastIndex]) < 0) {
                                 leastIndex = i;
                             }
                         }
@@ -173,8 +170,7 @@ public final class Sorter<Entry, Key, Value> {
                 if (leastIndex == -1) {
                     break;
                 }
-                final byte[] bytes = options.serializer().serialize(leastEntry);
-                leastEntry = null;
+                final byte[] bytes = options.serializer().serialize(entry[leastIndex]);
                 entry[leastIndex] = null;
                 if (!options.serializer().size().isPresent()) {
                     out.write(Util.intToBytes(bytes.length));

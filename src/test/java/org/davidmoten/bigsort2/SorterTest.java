@@ -9,7 +9,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.github.davidmoten.guavamini.Lists;
@@ -24,15 +23,17 @@ public class SorterTest {
         final int N = 100;
         final Sorter<Integer, Integer, Integer> sorter = createSorter();
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
-        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
+        assertTrue(
+                Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
     }
 
     @Test
     public void testFixedSize() {
         final int N = 100;
-        final Sorter<Integer, Integer, Integer> sorter = createSorter(false, 10);
+        final Sorter<Integer, Integer, Integer> sorter = createSorter(false, 10, 2);
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
-        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
+        assertTrue(
+                Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
     }
 
     @Test
@@ -53,31 +54,34 @@ public class SorterTest {
     }
 
     @Test
-    @Ignore
-    public void testLarge() {
+    public void testLargePerformance() {
         final int N = 10_000_000;
         final int maxInMemorySort = 1_000_000;
         long t = System.currentTimeMillis();
-        final Sorter<Integer, Integer, Integer> sorter = createSorter(false, maxInMemorySort);
+        final Sorter<Integer, Integer, Integer> sorter = createSorter(false, maxInMemorySort, 5);
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
-        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
+        assertTrue(
+                Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
         t = System.currentTimeMillis() - t;
         System.out.println(N / 1_000_000.0 / t * 1000 + "m records/s");
     }
 
-    private static Sorter<Integer, Integer, Integer> createSorter(boolean dynamicSize, int maxInMemorySort) {
-        final Serializer<Integer> serializer = createSerializer(dynamicSize);
-        final Options<Integer, Integer, Integer> options = new Options<>(maxInMemorySort, Comparator.naturalOrder(),
-                Functions.identity(), serializer, "target");
-        final Sorter<Integer, Integer, Integer> sorter = new Sorter<Integer, Integer, Integer>(options);
+    private static Sorter<Integer, Integer, Integer> createSorter(boolean variableSize,
+            int maxInMemorySort, int filesPerMerge) {
+        final Serializer<Integer> serializer = createSerializer(variableSize);
+        final Options<Integer, Integer, Integer> options = new Options<>(maxInMemorySort,
+                Comparator.naturalOrder(), Functions.identity(), serializer, "target",
+                filesPerMerge);
+        final Sorter<Integer, Integer, Integer> sorter = new Sorter<Integer, Integer, Integer>(
+                options);
         return sorter;
     }
 
     private static Sorter<Integer, Integer, Integer> createSorter() {
-        return createSorter(true, 10);
+        return createSorter(true, 10, 2);
     }
 
-    private static Serializer<Integer> createSerializer(boolean dynamicSize) {
+    private static Serializer<Integer> createSerializer(boolean variableSize) {
         return new Serializer<Integer>() {
 
             @Override
@@ -92,7 +96,7 @@ public class SorterTest {
 
             @Override
             public Optional<Integer> size() {
-                if (dynamicSize) {
+                if (variableSize) {
                     return Optional.of(4);
                 } else {
                     return Optional.empty();
