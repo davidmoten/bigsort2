@@ -3,9 +3,9 @@ package org.davidmoten.bigsort2;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -59,12 +59,13 @@ public class SorterTest {
         final int N = 10_000_000;
         final int maxInMemorySort = 1_000_000;
         long t = System.currentTimeMillis();
-        final Sorter<Integer> sorter = createSorter(false, maxInMemorySort, 5);
+        final Sorter<Integer> sorter = createSorter(false, maxInMemorySort, 10);
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
+        t = System.currentTimeMillis() - t;
+        System.out.println(
+                new DecimalFormat("#.000").format(N / 1_000_000.0 / t * 1000) + "m records/s");
         assertTrue(
                 Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
-        t = System.currentTimeMillis() - t;
-        System.out.println(N / 1_000_000.0 / t * 1000 + "m records/s");
     }
 
     @Test

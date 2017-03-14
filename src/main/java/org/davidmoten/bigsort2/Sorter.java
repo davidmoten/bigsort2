@@ -48,7 +48,9 @@ public final class Sorter<Entry> {
                         .fromCallable(() -> sortInPlace(list, options.comparator()))
                         .map(sorted -> writeToNewFile(sorted)) //
                         .subscribeOn(Schedulers.computation()), 1)
-                .toList().map(files -> merge(files));
+                .toList()
+                .doOnSuccess(list -> System.out.println("written to temp files"))
+                .map(files -> merge(files));
     }
 
     public Flowable<Entry> entries(File file) {
