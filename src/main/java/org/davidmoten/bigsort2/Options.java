@@ -2,7 +2,7 @@ package org.davidmoten.bigsort2;
 
 import java.util.Comparator;
 
-public final class Options<Entry> {
+final class Options<Entry> {
 
     private final int maxInMemorySort;
     private final Serializer<Entry> serializer;
@@ -10,7 +10,7 @@ public final class Options<Entry> {
     private final String directory;
     private final int filesPerMerge;
 
-    public Options(int maxInMemorySort, Comparator<Entry> comparator, //
+    Options(int maxInMemorySort, Comparator<Entry> comparator, //
             Serializer<Entry> serializer, String directory, int filesPerMerge) {
         this.maxInMemorySort = maxInMemorySort;
         this.comparator = comparator;
@@ -44,7 +44,7 @@ public final class Options<Entry> {
         private int maxInMemorySort = 1000000;
         private String directory = System.getProperty("java.io.tmpdir");
         private int filesPerMerge = 2;
-        private Serializer<Entry> serializer;
+        private final Serializer<Entry> serializer;
         private Comparator<Entry> comparator;
 
         public Builder(Serializer<Entry> serializer) {
@@ -66,19 +66,17 @@ public final class Options<Entry> {
             return this;
         }
 
-        public  Builder<Entry> comparator(Comparator<Entry> comparator) {
-            this.comparator= comparator;
+        public Builder<Entry> comparator(Comparator<Entry> comparator) {
+            this.comparator = comparator;
             return this;
         }
-        
+
         public Sorter<Entry> build() {
-            Options<Entry> options = new Options<Entry>(maxInMemorySort,
-                    comparator, serializer, directory,
+            final Options<Entry> options = new Options<Entry>(maxInMemorySort, comparator, serializer, directory,
                     filesPerMerge);
             return new Sorter<Entry>(options);
         }
 
     }
-
 
 }

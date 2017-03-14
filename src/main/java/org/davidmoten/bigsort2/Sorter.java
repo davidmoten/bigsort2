@@ -33,28 +33,25 @@ public final class Sorter<Entry> {
 
     private final AtomicLong index = new AtomicLong();
 
-    public Sorter(Options<Entry> options) {
+    Sorter(Options<Entry> options) {
         this.options = options;
     }
-    
-    public static <Entry,Key> Options.Builder<Entry> serializer(Serializer<Entry> serializer) {
+
+    public static <Entry, Key> Options.Builder<Entry> serializer(Serializer<Entry> serializer) {
         return new Options.Builder<>(serializer);
     }
 
     public Single<File> sort(Flowable<Entry> source) {
         return source //
                 .buffer(options.maxInMemorySort()) //
-                .flatMap(list -> Flowable
-                        .fromCallable(() -> sortInPlace(list, options.comparator()))
+                .flatMap(list -> Flowable.fromCallable(() -> sortInPlace(list, options.comparator()))
                         .map(sorted -> writeToNewFile(sorted)) //
                         .subscribeOn(Schedulers.computation()))
-                .toList()
-                .map(files -> merge(files));
+                .toList().map(files -> merge(files));
     }
 
     public Flowable<Entry> entries(File file) {
-        final Callable<InputStream> resourceSupplier = () -> new BufferedInputStream(
-                new FileInputStream(file));
+        final Callable<InputStream> resourceSupplier = () -> new BufferedInputStream(new FileInputStream(file));
         final Function<InputStream, Flowable<Entry>> sourceSupplier = is -> Flowable.generate(c -> {
             if (options.serializer().size().isPresent()) {
                 final byte[] bytes = new byte[options.serializer().size().get()];
@@ -70,8 +67,7 @@ public final class Sorter<Entry> {
                 if (a == -1) {
                     c.onComplete();
                 } else {
-                    final int length = Util.intFromBytes(a, (byte) is.read(), (byte) is.read(),
-                            (byte) is.read());
+                    final int length = Util.intFromBytes(a, (byte) is.read(), (byte) is.read(), (byte) is.read());
                     final byte[] bytes = new byte[length];
                     is.read(bytes);
                     final Entry entry = options.serializer().deserialize(bytes);
@@ -125,8 +121,7 @@ public final class Sorter<Entry> {
         final DataInputStream[] fileStream = new DataInputStream[files.size()];
         try (OutputStream out = new BufferedOutputStream(new FileOutputStream(file))) {
             for (int i = 0; i < files.size(); i++) {
-                fileStream[i] = new DataInputStream(
-                        new BufferedInputStream(new FileInputStream(files.get(i))));
+                fileStream[i] = new DataInputStream(new BufferedInputStream(new FileInputStream(files.get(i))));
             }
             // holds the current entry for each fileStream (null if not read
             // yet)
@@ -141,7 +136,7 @@ public final class Sorter<Entry> {
                             if (options.serializer().size().isPresent()) {
                                 // fixed size records
                                 final byte[] bytes = new byte[options.serializer().size().get()];
-                                int count = fileStream[i].read(bytes);
+                                final int count = fileStream[i].read(bytes);
                                 if (count == -1) {
                                     fileStream[i].close();
                                     fileStream[i] = null;
@@ -166,8 +161,7 @@ public final class Sorter<Entry> {
                         if (entry[i] != null) {
                             if (leastIndex == -1) {
                                 leastIndex = i;
-                            } else if (options.comparator().compare(entry[i],
-                                    entry[leastIndex]) < 0) {
+                            } else if (options.comparator().compare(entry[i], entry[leastIndex]) < 0) {
                                 leastIndex = i;
                             }
                         }
@@ -187,7 +181,7 @@ public final class Sorter<Entry> {
             throw new RuntimeException(e);
         } finally {
             // cleanup the input streams in case of failure
-            for (DataInputStream d : fileStream) {
+            for (final DataInputStream d : fileStream) {
                 closeQuietly(d);
             }
         }
@@ -198,15 +192,16 @@ public final class Sorter<Entry> {
     }
 
     public static int readInt(InputStream is) throws IOException {
-        int ch1 = is.read();
+        final int ch1 = is.read();
         if (ch1 == -1) {
             return -1;
         }
-        int ch2 = is.read();
-        int ch3 = is.read();
-        int ch4 = is.read();
-        if ((ch1 | ch2 | ch3 | ch4) < 0)
+        final int ch2 = is.read();
+        final int ch3 = is.read();
+        final int ch4 = is.read();
+        if ((ch1 | ch2 | ch3 | ch4) < 0) {
             throw new EOFException();
+        }
         return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
     }
 
@@ -215,7 +210,7 @@ public final class Sorter<Entry> {
         if (d != null) {
             try {
                 d.close();
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 // ignore
             }
         }
