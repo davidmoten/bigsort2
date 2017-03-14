@@ -2,8 +2,6 @@ package org.davidmoten.bigsort2;
 
 import java.util.Comparator;
 
-import io.reactivex.functions.Function;
-
 public final class Options<Entry> {
 
     private final int maxInMemorySort;

@@ -1,6 +1,11 @@
 package org.davidmoten.bigsort2;
 
-public class Util {
+public final class Util {
+
+    private Util() {
+        // prevent instantiation
+    }
+
     public static int intFromBytes(byte[] bytes) {
         return intFromBytes(bytes[0], bytes[1], bytes[2], bytes[3]);
     }
@@ -10,6 +15,7 @@ public class Util {
     }
 
     public static final byte[] intToBytes(int value) {
-        return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value };
+        return new byte[] { (byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8),
+                (byte) value };
     }
 }

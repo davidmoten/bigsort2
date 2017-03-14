@@ -3,11 +3,13 @@ package org.davidmoten.bigsort2;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Test;
 
@@ -63,6 +65,23 @@ public class SorterTest {
                 Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
         t = System.currentTimeMillis() - t;
         System.out.println(N / 1_000_000.0 / t * 1000 + "m records/s");
+    }
+
+    @Test
+    public void closeQuietlyNoException() {
+        AtomicBoolean closed = new AtomicBoolean();
+        Sorter.closeQuietly(() -> closed.set(true));
+        assertTrue(closed.get());
+    }
+
+    @Test
+    public void closeQuietlyWithException() {
+        AtomicBoolean closed = new AtomicBoolean();
+        Sorter.closeQuietly(() -> {
+            closed.set(true);
+            throw new IOException("boo");
+        });
+        assertTrue(closed.get());
     }
 
     private static Sorter<Integer> createSorter(boolean variableSize, int maxInMemorySort,

@@ -2,6 +2,7 @@ package org.davidmoten.bigsort2;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.File;
@@ -208,7 +209,8 @@ public final class Sorter<Entry> {
         return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
     }
 
-    private static void closeQuietly(DataInputStream d) {
+    @VisibleForTesting
+    static void closeQuietly(Closeable d) {
         if (d != null) {
             try {
                 d.close();
