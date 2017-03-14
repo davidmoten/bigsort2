@@ -26,14 +26,18 @@ import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
-public final class Sorter<Entry, Key, Value> {
+public final class Sorter<Entry, Key> {
 
-    private final Options<Entry, Key, Value> options;
+    private final Options<Entry, Key> options;
 
     private final AtomicLong index = new AtomicLong();
 
-    public Sorter(Options<Entry, Key, Value> options) {
+    public Sorter(Options<Entry, Key> options) {
         this.options = options;
+    }
+    
+    public static <Entry,Key> Options.Builder<Entry> serializer(Serializer<Entry> serializer) {
+        return new Options.Builder<>(serializer);
     }
 
     public Single<File> sort(Flowable<Entry> source) {
@@ -191,10 +195,11 @@ public final class Sorter<Entry, Key, Value> {
         return file;
     }
 
-    public final int readInt(InputStream is) throws IOException {
+    public static int readInt(InputStream is) throws IOException {
         int ch1 = is.read();
-        if (ch1 == -1)
+        if (ch1 == -1) {
             return -1;
+        }
         int ch2 = is.read();
         int ch3 = is.read();
         int ch4 = is.read();
