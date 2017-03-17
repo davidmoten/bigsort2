@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.github.davidmoten.guavamini.Preconditions;
 import com.github.davidmoten.guavamini.annotations.VisibleForTesting;
+import com.github.davidmoten.rx2.flowable.Transformers;
 
 import io.reactivex.Flowable;
 import io.reactivex.Single;
@@ -40,13 +41,24 @@ public final class Sorter<Entry> {
         return new Options.Builder<>(serializer);
     }
 
-    public Single<File> sort(Flowable<Entry> source) {
+    public Single<File> sort2(Flowable<Entry> source) {
         return source //
                 .buffer(options.maxInMemorySort()) //
                 .flatMap(list -> Flowable.fromCallable(() -> sortInPlace(list, options.comparator()))
                         .map(sorted -> writeToNewFile(sorted)) //
                         .subscribeOn(Schedulers.computation()))
                 .toList().map(files -> merge(files));
+    }
+
+    public Single<File> sort(Flowable<Entry> source) {
+        final Flowable<File> flow = source //
+                .buffer(options.maxInMemorySort()) //
+                .flatMap(list -> Flowable.fromCallable(() -> sortInPlace(list, options.comparator()))
+                        .map(sorted -> writeToNewFile(sorted)) //
+                        .subscribeOn(Schedulers.computation()));
+        return flow.to(Transformers.reduce(f -> f.buffer(options.filesPerMerge())
+                .flatMap(list -> Flowable.fromCallable(() -> mergeThese(list))).subscribeOn(Schedulers.computation()),
+                4)).toSingle();
     }
 
     public Flowable<Entry> entries(File file) {

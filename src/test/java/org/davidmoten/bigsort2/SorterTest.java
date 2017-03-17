@@ -24,8 +24,7 @@ public class SorterTest {
         final int N = 100;
         final Sorter<Integer> sorter = createSorter();
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
-        assertTrue(
-                Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
+        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
     }
 
     @Test
@@ -33,8 +32,7 @@ public class SorterTest {
         final int N = 100;
         final Sorter<Integer> sorter = createSorter(false, 10, 2);
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
-        assertTrue(
-                Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
+        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
     }
 
     @Test
@@ -62,22 +60,20 @@ public class SorterTest {
         final Sorter<Integer> sorter = createSorter(false, maxInMemorySort, 10);
         final File file = sorter.sort(Flowable.range(1, N).map(x -> N + 1 - x)).blockingGet();
         t = System.currentTimeMillis() - t;
-        System.out.println(
-                new DecimalFormat("#.000").format(N / 1_000_000.0 / t * 1000) + "m records/s");
-        assertTrue(
-                Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
+        System.out.println(new DecimalFormat("#.000").format(N / 1_000_000.0 / t * 1000) + "m records/s");
+        assertTrue(Flowable.sequenceEqual(sorter.entries(file), Flowable.range(1, N)).blockingGet());
     }
 
     @Test
     public void closeQuietlyNoException() {
-        AtomicBoolean closed = new AtomicBoolean();
+        final AtomicBoolean closed = new AtomicBoolean();
         Sorter.closeQuietly(() -> closed.set(true));
         assertTrue(closed.get());
     }
 
     @Test
     public void closeQuietlyWithException() {
-        AtomicBoolean closed = new AtomicBoolean();
+        final AtomicBoolean closed = new AtomicBoolean();
         Sorter.closeQuietly(() -> {
             closed.set(true);
             throw new IOException("boo");
@@ -85,13 +81,12 @@ public class SorterTest {
         assertTrue(closed.get());
     }
 
-    private static Sorter<Integer> createSorter(boolean variableSize, int maxInMemorySort,
-            int filesPerMerge) {
+    private static Sorter<Integer> createSorter(boolean variableSize, int maxInMemorySort, int filesPerMerge) {
         return Sorter //
                 .serializer(createSerializer(variableSize)) //
                 .maxInMemorySort(maxInMemorySort) //
                 .filesPerMerge(filesPerMerge)//
-                .comparator(Comparator.<Integer> naturalOrder()) //
+                .comparator(Comparator.<Integer>naturalOrder()) //
                 .directory("target") //
                 .build();
     }
