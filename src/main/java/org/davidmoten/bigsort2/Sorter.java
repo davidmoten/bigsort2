@@ -58,7 +58,7 @@ public final class Sorter<Entry> {
                         .subscribeOn(Schedulers.computation()));
         return flow.to(Transformers.reduce(f -> f.buffer(options.filesPerMerge())
                 .flatMap(list -> Flowable.fromCallable(() -> mergeThese(list))).subscribeOn(Schedulers.computation()),
-                4)).toSingle();
+                2)).toSingle();
     }
 
     public Flowable<Entry> entries(File file) {
